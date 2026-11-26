@@ -1,0 +1,29 @@
+name: Windows validation
+
+on:
+  push:
+    branches:
+      - main
+      - feature/kenya-retail-credit-pricing-returns
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  test-and-package:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Create isolated build environment
+        run: python -m venv .venv
+      - name: Install project and packaging dependencies
+        run: .venv\Scripts\python.exe -m pip install -r requirements.txt -r requirements-build.txt
+      - name: Compile source
+        run: .venv\Scripts\python.exe -m compileall -q .
+      - name: Run unit tests
+        run: .venv\Scripts\python.exe -m unittest discover -s tests -v
+      - name: Package Windows build
+        run: .venv\Scripts\python.exe -m PyInstaller --clean --noconfirm --windowed --onedir --name "NextGen ERP" main.py
