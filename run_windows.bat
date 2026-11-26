@@ -1,50 +1,73 @@
 @echo off
-setlocal
+setlocal EnableExtensions
 cd /d "%~dp0"
-title NextGen ERP Desktop v7
+title NextGen ERP Desktop
 
 echo ================================================
-echo          NEXTGEN ERP DESKTOP v7
+echo          NEXTGEN ERP DESKTOP
 echo ================================================
 echo.
-set "PYEXE="
-where py >nul 2>nul
-if not errorlevel 1 (
-  py -3 -c "import sys; assert sys.version_info >= (3,10)" >nul 2>nul
-  if not errorlevel 1 set "PYEXE=py -3"
+
+set "VENV=%~dp0.venv"
+set "PYEXE=%VENV%\Scripts\python.exe"
+
+if not exist "%PYEXE%" (
+    echo Creating isolated ERP Python environment...
+    set "BASEPY="
+    where py >nul 2>nul
+    if not errorlevel 1 (
+        py -3 -c "import sys; assert sys.version_info >= (3,10)" >nul 2>nul
+        if not errorlevel 1 set "BASEPY=py -3"
+    )
+    if not defined BASEPY (
+        where python >nul 2>nul
+        if not errorlevel 1 (
+            python -c "import sys; assert sys.version_info >= (3,10)" >nul 2>nul
+            if not errorlevel 1 set "BASEPY=python"
+        )
+    )
+    if not defined BASEPY (
+        echo ERROR: Python 3.10 or newer was not found.
+        echo Install Python and enable the Python launcher or PATH.
+        pause
+        exit /b 1
+    )
+    %BASEPY% -m venv "%VENV%"
+    if errorlevel 1 (
+        echo ERROR: Could not create the isolated environment.
+        pause
+        exit /b 1
+    )
 )
-if not defined PYEXE (
-  where python >nul 2>nul
-  if not errorlevel 1 (
-    python -c "import sys; assert sys.version_info >= (3,10)" >nul 2>nul
-    if not errorlevel 1 set "PYEXE=python"
-  )
-)
-if not defined PYEXE (
-  echo ERROR: Python was not found.
-  echo Install Python 3.10 or newer and enable Add Python to PATH.
-  pause
-  exit /b 1
-)
-echo Checking desktop dependencies...
-%PYEXE% -c "import PySide6" >nul 2>nul
-if errorlevel 1 (
-  echo PySide6 is missing. Attempting installation...
-  %PYEXE% -m pip install --upgrade pip
-  %PYEXE% -m pip install -r requirements.txt
-  if errorlevel 1 (
-    echo.
-    echo ERROR: Could not install dependencies. Check internet access and try again.
+
+if not exist "%PYEXE%" (
+    echo ERROR: The ERP virtual environment is incomplete.
     pause
     exit /b 1
-  )
 )
-echo Launching NextGen ERP...
-%PYEXE% main.py
+
+echo Checking ERP-only dependencies...
+"%PYEXE%" -c "import PySide6" >nul 2>nul
 if errorlevel 1 (
-  echo.
-  echo The ERP closed with an error. Read the traceback above.
-  pause
+    echo Installing dependencies into the ERP environment only...
+    "%PYEXE%" -m pip install --upgrade pip
+    if errorlevel 1 (
+        echo WARNING: pip upgrade failed. Continuing with current pip.
+    )
+    "%PYEXE%" -m pip install -r requirements.txt
+    if errorlevel 1 (
+        echo.
+        echo ERROR: Dependency installation failed. Check internet access.
+        pause
+        exit /b 1
+    )
+)
+
+echo Launching NextGen ERP...
+"%PYEXE%" main.py
+if errorlevel 1 (
+    echo.
+    echo The ERP closed with an error. Read the traceback above.
+    pause
 )
 endlocal
-
